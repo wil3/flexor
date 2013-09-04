@@ -18,7 +18,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>JavaScript ARM Emulator</title>
+<title>Flexor - JavaScript ARM Emulator</title>
 
 <script type="text/javascript" src="arm.js"></script>
 
@@ -30,6 +30,10 @@
     margin-right: auto;
     width: 800px;
     text-align:center;
+}
+
+#wrapper > div {
+	padding: 10px;
 }
 .c {
 	margin:3px;
@@ -86,14 +90,17 @@ td {
 .highlight {
 	background-color:#CCC;
 }
+#c_authors {
+	padding:10px;
+}
 </style>
 </head>
 <body>
 
 <div id="wrapper">
 	<div>
-	Javascript ARM Emulator
-	By William Koch
+	Flexor - Javascript ARM Emulator
+	
 	</div>
 	<div>
 	<input type="button" value="Reset" onclick="reset()"/>
@@ -114,7 +121,9 @@ td {
 	
 		
 	</div>
-
+	<div id="c_authors">
+	By William Koch
+	</div>
 </div>
 
 <script type="text/javascript">
