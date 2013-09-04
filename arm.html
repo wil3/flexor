@@ -1,0 +1,298 @@
+<!--
+ Copyright 2012 William Koch
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>JavaScript ARM Emulator</title>
+
+<script type="text/javascript" src="arm.js"></script>
+
+
+
+<style>
+#wrapper{
+ 	margin-left: auto;
+    margin-right: auto;
+    width: 800px;
+    text-align:center;
+}
+.c {
+	margin:3px;
+	border:1px solid black;
+	
+}
+#c_comp {
+	height:500px;
+
+}
+
+#c_drop_zone{
+	display:table;
+	border-spacing: 15px;
+	height:100%;
+	float:left;
+}
+#drop_zone{
+	display: table-cell; 
+	vertical-align: middle;
+	text-align:center;
+	padding:15px;
+	border: 2px dashed #BBBBBB;
+	color:#BBBBBB;
+}
+#c_regfile{
+	float:left;
+	height:100%;
+}
+#c_mem {
+	width:250px;
+	height:500px;
+	overflow:auto;
+	float:left;
+}
+#regfile {
+	height:100%;
+}
+#mem,#regfile {
+	width:100%;
+}
+#mem,#regfile {
+	border-collapse:collapse;
+}
+td {
+	padding:0px;
+	border:none;
+}
+#mem input {
+	width:20px;
+	border: none;
+	padding:0px;
+}
+.highlight {
+	background-color:#CCC;
+}
+</style>
+</head>
+<body>
+
+<div id="wrapper">
+	<div>
+	Javascript ARM Emulator
+	By William Koch
+	</div>
+	<div>
+	<input type="button" value="Reset" onclick="reset()"/>
+	<input type="button" value="Clk" onclick="tick()"/>
+	</div>
+	
+	<div id="c_comp">
+		<div class="c" id="c_drop_zone">
+			
+			<div id="drop_zone">drop iHex file here</div>
+		</div>
+		<div class="c" id="c_mem">
+			<table id="mem"></table>
+		</div>
+		<div class="c" id="c_regfile">
+			<table id="regfile"></table>
+		</div>
+	
+		
+	</div>
+
+</div>
+
+<script type="text/javascript">
+
+/**
+ * Memory Display
+ */
+var prefix = "mem-";
+var tblEl = document.getElementById("mem");
+var w = 8*8;
+var highlight = true;
+for (var i=0x8000; i>=0; i-=w){
+	var row = tblEl.insertRow(-1);
+	//if (highlight){
+	//	row.className = "highlight";
+//	}
+	highlight = (highlight) ? false:true;
+	var addr = row.insertCell(-1);
+	
+	//Make pretty
+	var shortStr = i.toString(16);
+	addr.innerHTML = "0x" + ("0000" + shortStr).slice((-1*shortStr.length) - 4 + shortStr.length);
+	
+	for (var j=(w-8); j >= 0; j-=8){
+		var inputEl = document.createElement("input");
+		inputEl.type = "text";
+		inputEl.id = prefix + (i + j).toString(16);
+		inputEl.defaultValue = "00";
+		inputEl.maxLength = 2;
+		if (!highlight){
+			inputEl.className = "highlight";
+			}
+		var cell = row.insertCell(-1)
+		cell.appendChild(inputEl)
+	}
+}
+//Set scroll to bottom
+
+
+
+var c_mem = document.getElementById("c_mem");
+c_mem.scrollTop=c_mem.scrollHeight;
+	
+/**
+ * Register File Display
+ * Table will only be readonly and updated on every clk 
+ */
+ var regTblEl = document.getElementById("regfile");
+var numRegs = 16;
+for (var i=0; i<numRegs; i++){
+	var row = regTblEl.insertRow(-1);
+	var label = row.insertCell(-1);
+	label.innerHTML = "R" + i;
+	var inputEl = document.createElement("input");
+	inputEl.type="text";
+	inputEl.readOnly = "readonly";
+	inputEl.defaultValue = "xxxx xxxx";
+	var val = row.insertCell(-1);
+	val.appendChild(inputEl);
+}
+
+
+//Check for the various File API support.
+if (window.File && window.FileReader && window.FileList && window.Blob) {
+  // Great success! All the File APIs are supported.
+} else {
+  alert('The File APIs are not fully supported in this browser.');
+}
+
+var mem = new koch.Mem({size:100});
+
+var arm = new koch.ARM({
+	memory: mem
+});
+
+arm.addClkListener("rising", function(){
+	for (var i=0; i< arm._aRegisters.length; i++){
+		var row = regTblEl.rows[i]
+		row.cells[1].getElementsByTagName("input")[0].value = arm._aRegisters[i];
+		var nop;
+	}
+})
+
+/**
+ * Manual clk
+ */
+function tick(){
+	arm.pluseClk();
+}
+/**
+ * Reset the processor
+ */
+function reset(){
+	arm.start();
+}
+function flashRecord(oRecord){
+	for (var i=0; i<oRecord.data.length; i++){
+		//TODO have address offset included
+		mem.store(i*8,oRecord.data[i]);
+	}
+}
+
+/**
+ * Parse an iHex record
+ */
+function parseRecord(sRecord){
+
+	var sData = sRecord.substring(8,sRecord.length-2);
+	var arrData=[];
+	for (var i=0; i<sData.length; i+=2){
+		arrData.push(
+				parseInt(sData.substring(i, i+2),16)
+				)
+	}
+//	arrData = arrData.reverse();
+	return {
+		length: parseInt(sRecord.substring(0,2),16),
+		address: parseInt(sRecord.substring(2,6),16),
+		type:	parseInt(sRecord.substring(6,8),16),
+		data:	arrData,//.reverse(),
+		checksum: null
+	}
+}
+
+
+
+  function handleFileSelect(evt) {
+    evt.stopPropagation();
+    evt.preventDefault();
+
+    var files = evt.dataTransfer.files; // FileList object.
+
+    // files is a FileList of File objects. List some properties.
+    
+    var output = [];
+    var f,start =0;
+ 	
+    for (var i = 0;i < 1; i++) {
+    	f = files[i];
+		   var reader = new FileReader();
+		
+		   // Closure to capture the file information.
+		reader.onload = (function(theFile) {
+			return function(e) {
+				var dataStr = e.target.result;
+				var records = dataStr.split(":");
+				for (var j=0; j<records.length; j++){
+					if (records[j].length > 0){
+						records[j] = records[j].replace(/(\r\n|\n|\r)/gm,"");
+						var record = parseRecord(records[j]);
+						if (record.type == 0){
+							flashRecord(record);
+						}
+					}
+				}
+			};
+		})(f);
+		var dataIn = reader.readAsBinaryString(f);
+    }
+
+    
+    var nop;
+  }
+
+  function handleDragOver(evt) {
+    evt.stopPropagation();
+    evt.preventDefault();
+    evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
+  }
+
+  // Setup the dnd listeners.
+  var dropZone = document.getElementById('drop_zone');
+  dropZone.addEventListener('dragover', handleDragOver, false);
+  dropZone.addEventListener('drop', handleFileSelect, false);
+  
+
+</script>
+
+
+</body>
+</html>
